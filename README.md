@@ -38,6 +38,7 @@ This workflow automatically monitors incoming emails, analyzes their urgency usi
 ```
 
 ---
+![Aperçu du Workflow n8n](./workflow-preview.png)
 
 ## 🛠️ Tech Stack & Integrations
 
