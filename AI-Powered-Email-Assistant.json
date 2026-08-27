@@ -1,0 +1,346 @@
+{
+  "name": "AI-Powered Email Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4o-mini"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=You are a helpful email assistant. Your job is to read incoming emails, summarize them in one line, and decide whether they need a reply. If a reply is needed, you will draft a polite response based on the email content. Always draft the response in HTML format so that it is ready to be sent."
+            },
+            {
+              "content": "=Your Tasks:\n1. Summarize the email given below in one line.\n2. Tell me if a reply is needed (Yes/No).\n3. If yes, suggest a short and polite reply I can send.\n\nPlease respond in the following JSON format:\n\n{\n  \"summary\": \"One sentence summary of the email\",\n  \"reply_needed\": \"Yes or No\",\n  \"suggested_reply\": \"Only if reply_needed is Yes, else leave as empty string\"\n}\n\nHere is the email body received:\n\n************\n\n{{ $json.text }}\n\n************"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        80
+      ],
+      "id": "f75a31ea-700b-4bd7-851e-9874fa03eaea",
+      "name": "summarize emails & draft replies"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9743fd34-b8e6-4358-9a73-a3344a25f04a",
+              "leftValue": "={{ $json.output[0].content[0].text.reply_needed }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        80
+      ],
+      "id": "a30db02c-3464-44cc-93d6-89394ba0b72b",
+      "name": "is reply needed"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('Gmail Trigger').item.json.headers.subject }}",
+        "emailType": "html",
+        "message": "={{ $('summarize emails & draft replies').item.json.output[0].content[0].text.suggested_reply }}",
+        "options": {
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.replyTo.value[0].address }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        816,
+        0
+      ],
+      "id": "b03a8041-75c7-40d0-89f4-cb337f527279",
+      "name": "Create a draft"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "message": "=🔔 New Email Alert!\n\n📋 Summary:{{ $('summarize emails & draft replies').item.json.output[0].content[0].text.summary }}\n✅ Reply Required: Yes\n\n✍️ Suggested Reply:{{ $('summarize emails & draft replies').item.json.output[0].content[0].text.suggested_reply }}\n\n🤖 What next?\n• Review and edit the draft reply in your Gmail\n• Or approve it by clicking [Approve & Disapprove] buttons below",
+        "responseType": "=approval",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "b1f75d73-950a-4fca-966e-9375a29744e1",
+      "name": "Send message and wait for response"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "operation": "get",
+        "messageId": "={{ $('Create a draft').item.json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        0
+      ],
+      "id": "52d227e2-d66c-47df-ac6e-efa3b8b0071c",
+      "name": "get original draft"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "64a61a49-29f8-4cdb-908c-0bfd1846797f",
+              "leftValue": true,
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1264,
+        0
+      ],
+      "id": "00bb3ded-29ad-4621-a9a4-aa4e0eed9ccd",
+      "name": "if approved"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        176
+      ],
+      "id": "fb59558a-9c53-40ad-bb08-92fd50cb4b47",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/drafts/send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1696,
+        0
+      ],
+      "id": "c3884fcf-bcf6-4280-961b-0370bc25c6c3",
+      "name": "send draft directly"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🔔 New Email Alert!\n\n📄 Summary:{{ $('summarize emails & draft replies').item.json.output[0].content[0].text.summary }}\n❌ Reply Required: No\n\nyou don't need to take any action",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        832,
+        176
+      ],
+      "id": "c1e18779-fc1c-417a-a848-287b8d597fba",
+      "name": "new email summary"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -16,
+        96
+      ],
+      "id": "4ae31a9b-3289-4db8-a97b-a35965ef885b",
+      "name": "Gmail Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "summarize emails & draft replies": {
+      "main": [
+        [
+          {
+            "node": "is reply needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "is reply needed": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "new email summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "if approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get original draft": {
+      "main": [
+        [
+          {
+            "node": "send draft directly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if approved": {
+      "main": [
+        [
+          {
+            "node": "get original draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "summarize emails & draft replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
